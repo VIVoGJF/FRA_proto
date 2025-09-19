@@ -3,6 +3,9 @@ import geopandas as gpd
 import folium
 from pathlib import Path
 from streamlit_folium import st_folium
+import matplotlib.pyplot as plt
+import plotly.express as px
+
 
 # ----------------------------
 # Paths
@@ -232,3 +235,108 @@ else:
     st_folium(m, width=900, height=640)
 
 
+
+# ----------------------------
+# Village statistics & schemes
+# ----------------------------
+if st.session_state.selected_village:
+    st.subheader("📊 Village Statistics & Recommendations")
+
+    # Create two columns
+    col1, col2 = st.columns([1, 1])
+    cover_stats = vc.groupby("_label_norm")["area_pixels"].sum()
+    cover_stats = cover_stats.reindex(["treecover", "cropland", "builtup", "waterbodies"]).dropna()
+
+    # --- Left side: Beneficiaries + Pie chart ---
+    with col1:
+        # Number of Beneficiaries
+        if not village_boundary.empty and "num_beneficiaries" in village_boundary.columns:
+            num_benef = int(village_boundary["num_beneficiaries"].sum())
+            st.markdown("##### 👥 Number of Beneficiaries")
+            st.write(f"##### **{num_benef:,}**")
+        else:
+            num_benef = 0
+            st.info("No beneficiary data available for this village.")
+        
+        
+        st.markdown("##### 🏷️ Recommended Schemes")
+
+        rec_schemes = []
+        if vc is not None and not vc.empty and not cover_stats.empty:
+            total_area = cover_stats.sum()
+            pct = {k: v / total_area * 100 for k, v in cover_stats.items()} if total_area > 0 else {}
+
+            # Smarter thresholds
+            if num_benef > 30:
+                rec_schemes.append("MGNREGA")
+            if pct.get("cropland", 0) >= 20:
+                rec_schemes.append("PM-Kisan Yojana")
+            if pct.get("waterbodies", 0) < 5:
+                rec_schemes.append("Jal Jeevan Mission")
+            if pct.get("treecover", 0) >= 30:
+                rec_schemes.append("Van Dhan Yojana")
+            if num_benef > 50 and pct.get("builtup", 0) < 10:
+                rec_schemes.append("PM Awas Yojana (Gramin)")
+
+        rec_schemes = list(dict.fromkeys(rec_schemes))  # remove duplicates
+
+        if rec_schemes:
+            for scheme in rec_schemes:
+                st.write(f"- {scheme}")
+        else:
+            st.info("No specific schemes recommended for this village.")
+
+
+
+
+    # ----------------------------
+    # Right column (schemes)
+    # ----------------------------
+    with col2:
+        # Land cover donut chart
+        if vc is not None and not vc.empty and "area_pixels" in vc.columns:
+
+            if not cover_stats.empty and cover_stats.sum() > 0:
+                import plotly.express as px
+                
+                #st.markdown("#### Land Cover")
+                
+                df_plot = cover_stats.reset_index()
+                df_plot.columns = ["Land Cover", "Area"]
+
+                pestle_colors = {
+                    "treecover": "#2ca02c",   # green
+                    "cropland": "#ff7f0e",    # orange
+                    "builtup": "#d62728",     # red
+                    "waterbodies": "#1f77b4"  # blue
+                }
+
+                fig = px.pie(
+                    df_plot,
+                    values="Area",
+                    names="Land Cover",
+                    hole=0.45,
+                    color="Land Cover",
+                    color_discrete_map=pestle_colors,
+                )
+
+                fig.update_traces(
+                    textposition="outside",
+                    textinfo="label+percent",
+                    pull=[0.02] * len(df_plot),
+                )
+
+                fig.update_layout(
+                    showlegend=False,
+                    margin=dict(t=100, b=60, l=60, r=60),
+                    title ={"text": "Land Cover Distribution", 
+                            "x": 0.5, 
+                            "xanchor": "center", 
+                            "font": {"size": 16, "family": "Arial", "color": "white"}},
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No valid land cover stats available for this village.")
+        else:
+            st.info("No land cover data available for this village.")
