@@ -19,5 +19,8 @@ numpy
 
 # Fuzzy matching (for village/block names)
 rapidfuzz
-camelot-py[cv]
+"camelot-py[cv]"
 streamlit
+streamlit_folium
+matplotlib
+seaborn
