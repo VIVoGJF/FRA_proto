@@ -1,0 +1,23 @@
+# Core
+flask
+flask-cors
+
+# Geospatial
+geopandas
+shapely
+fiona
+rtree
+rasterio
+
+# Visualization / Maps
+folium
+plotly
+
+# Data handling
+pandas
+numpy
+
+# Fuzzy matching (for village/block names)
+rapidfuzz
+camelot-py[cv]
+streamlit
